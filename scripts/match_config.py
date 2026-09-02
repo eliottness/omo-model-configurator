@@ -40,6 +40,9 @@ TIER_PATTERN: Final = re.compile(
 )
 SPEED_SUFFIX_PATTERN: Final = re.compile(r"-(?:fast|pro)$", re.IGNORECASE)
 NON_ALPHANUMERIC_PATTERN: Final = re.compile(r"[^a-z0-9]")
+DASH_RUN_PATTERN: Final = re.compile(r"[-\u2010-\u2015]+")
+ALPHA_RUN_PATTERN: Final = re.compile(r"[a-z]+")
+DIGIT_RUN_PATTERN: Final = re.compile(r"\d+")
 TRAILING_COMMA_PATTERN: Final = re.compile(r",(?=\s*[}\]])")
 TIER_RANK: Final = {
     "non-reasoning": 0,
@@ -100,6 +103,7 @@ class ConfiguredModel:
 @dataclass(frozen=True, slots=True)
 class LeaderboardRow:
     display_name: str
+    base_name: str
     normalized_name: str
     reasoning_tier: str
     speed_tier_stripped: bool
@@ -248,6 +252,20 @@ def extract_configured_models(config: dict[str, JsonValue]) -> list[ConfiguredMo
     return configured
 
 
+def token_key(name: str) -> str:
+    """Word-order-insensitive key for a model name.
+
+    AA publishes some models with the version ahead of the tier word ("Claude
+    4.5 Haiku") where the config id puts it after ("claude-haiku-4-5"). Sorting
+    the alphabetic tokens makes that ordering irrelevant, while numeric tokens
+    keep their original order so GLM-5.3 and GLM-3.5 stay distinct.
+    """
+    lowered = SPEED_SUFFIX_PATTERN.sub("", name.lower())
+    words = "".join(sorted(ALPHA_RUN_PATTERN.findall(lowered)))
+    digits = ".".join(DIGIT_RUN_PATTERN.findall(lowered))
+    return f"{words}|{digits}"
+
+
 def normalize_model_name(name: str) -> tuple[str, bool]:
     lowered = name.lower()
     without_speed_suffix, substitutions = SPEED_SUFFIX_PATTERN.subn("", lowered)
@@ -255,9 +273,18 @@ def normalize_model_name(name: str) -> tuple[str, bool]:
 
 
 def parse_number(value: str | None, column: str) -> float | None:
-    if value is None or not value.strip() or value.strip().lower() in {"n/a", "-"}:
+    if value is None or not value.strip():
         return None
-    cleaned = value.replace("$", "").replace(",", "").strip()
+    text = value.strip()
+    # Artificial Analysis writes a missing cell as a dash run ("-", "--") or an
+    # en/em dash, and marks an estimated figure with a trailing asterisk.
+    if text.lower() in {"n/a", "na"} or DASH_RUN_PATTERN.fullmatch(text):
+        return None
+    cleaned = (
+        text.rstrip("*").replace("$", "").replace(",", "").replace("%", "").strip()
+    )
+    if not cleaned:
+        return None
     try:
         return float(cleaned)
     except ValueError as error:
@@ -292,6 +319,7 @@ def load_leaderboard(path: Path) -> list[LeaderboardRow]:
             rows.append(
                 LeaderboardRow(
                     display_name=display_name,
+                    base_name=base_name,
                     normalized_name=normalized_name,
                     reasoning_tier=reasoning_tier,
                     speed_tier_stripped=speed_stripped,
@@ -340,13 +368,17 @@ def match_models(
     leaderboard_rows: list[LeaderboardRow],
 ) -> list[MatchResult]:
     by_name: dict[str, list[LeaderboardRow]] = {}
+    by_tokens: dict[str, list[LeaderboardRow]] = {}
     for row in leaderboard_rows:
         by_name.setdefault(row.normalized_name, []).append(row)
+        by_tokens.setdefault(token_key(row.base_name), []).append(row)
     results: list[MatchResult] = []
     for configured in configured_models:
         model_name = configured.model_id.split("/")[-1]
         normalized_name, speed_stripped = normalize_model_name(model_name)
-        candidates = by_name.get(normalized_name, [])
+        candidates = by_name.get(normalized_name, []) or by_tokens.get(
+            token_key(model_name), []
+        )
         if not candidates:
             results.append(
                 MatchResult(

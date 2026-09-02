@@ -358,3 +358,73 @@ def test_minimal_reasoning_matches_low_tier_exactly(tmp_path: Path) -> None:
 
     # Then it resolves to the equivalent published tier rather than never matching
     assert output["matches"][0]["match_kind"] == "exact"
+
+
+def test_double_dash_missing_marker_is_treated_as_absent(tmp_path: Path) -> None:
+    # Given the marker Artificial Analysis actually emits for a missing value,
+    # which appears in every row of a real scrape
+    config = """{
+      "[opencode]": {
+        "agents": {"a": {"model": "p/alpha", "reasoning": "high"}}
+      }
+    }"""
+    rows = [leaderboard_row("alpha (high)")]
+    rows[0]["Median Tokens/s"] = "--"
+
+    # When
+    output = run_match(config, rows, tmp_path)
+
+    # Then the row still matches and the cell is null, rather than crashing
+    assert output["matches"][0]["match_kind"] == "exact"
+    assert output["matches"][0]["median_tokens_per_second"] is None
+
+
+def test_estimate_marker_is_parsed_as_a_number(tmp_path: Path) -> None:
+    # Given AA's trailing-asterisk estimate marker
+    config = """{
+      "[opencode]": {
+        "agents": {"a": {"model": "p/alpha", "reasoning": "high"}}
+      }
+    }"""
+    rows = [leaderboard_row("alpha (high)")]
+    rows[0]["Artificial Analysis Intelligence Index"] = "46*"
+
+    # When
+    output = run_match(config, rows, tmp_path)
+
+    # Then the value survives as a number
+    assert output["matches"][0]["intelligence"] == 46.0
+
+
+def test_word_order_difference_still_matches(tmp_path: Path) -> None:
+    # Given a config id and a leaderboard name that differ only in word order,
+    # which is how AA publishes several Claude models
+    config = """{
+      "[opencode]": {
+        "agents": {"a": {"model": "p/claude-haiku-4-5"}}
+      }
+    }"""
+    rows = [leaderboard_row("Claude 4.5 Haiku")]
+
+    # When
+    output = run_match(config, rows, tmp_path)
+
+    # Then it is not reported as unbenchmarked
+    assert output["matches"][0]["matched_leaderboard_row"] == "Claude 4.5 Haiku"
+
+
+def test_reordered_version_numbers_do_not_match(tmp_path: Path) -> None:
+    # Given two distinct models whose tokens are permutations of each other,
+    # word-order tolerance must not collapse them
+    config = """{
+      "[opencode]": {
+        "agents": {"a": {"model": "p/GLM-5.3", "reasoning": "max"}}
+      }
+    }"""
+    rows = [leaderboard_row("GLM-3.5 (max)")]
+
+    # When
+    output = run_match(config, rows, tmp_path)
+
+    # Then
+    assert output["matches"][0]["match_kind"] == "not-benchmarked"
