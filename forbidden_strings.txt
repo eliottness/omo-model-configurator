@@ -1,0 +1,7 @@
+datadog/baseten
+datadog/bedrock
+datadog/gemini
+datadog/google
+dd-gateway-models.json
+/Users/
+@datadoghq.com
