@@ -98,7 +98,7 @@ version collapse).
    `scripts/check_tool_schema.py`.
 6. Measure throughput yourself if it matters: `scripts/bench_throughput.sh`.
    Published vendor figures are measured on the vendor's own endpoint — see
-   `docs/known-issues.md`.
+   `docs/methodology.md`.
 7. **Back up the config before editing it**, and verify the backup.
 
 ## Rules for the change itself

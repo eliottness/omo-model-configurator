@@ -19,8 +19,9 @@ composite `Omniscience Index`. The benchmark is 6,000 obscure-fact questions,
 **1 repeat**, **no tool use**, contributing 12% of the Intelligence Index
 (accuracy 8%, non-hallucination 4%).
 
-The formulas, recovered from the published columns and validated across 18
-models to within 1.5 points:
+The formulas below are inferred from the published columns, not published by AA.
+They reproduce the published values closely on the models spot-checked, but
+treat them as a reading aid rather than a specification:
 
 ```
 HallucinationRate = wrong / (wrong + abstained)
@@ -63,15 +64,9 @@ that greps or fetches first.
 
 `Median Tokens/s` and the latency percentiles are measured against the endpoint
 **AA chose**. Your serving stack, region, quantization, batching and gateway are
-different, and the gap is not small. Measured on one real deployment:
-
-| Model | AA published | Measured locally | Ratio |
-|---|---|---|---|
-| A GLM-5.3-Flash deployment | 43 tok/s | 255.4 tok/s (spread 16%, n=3) | **5.9x** |
-| A Claude Opus 5 (xhigh) deployment | 51 tok/s | 157.3 tok/s (spread 18%, n=2) | **3.1x** |
-
-Both were *faster* than published, by multiples. **Do not make a latency or
-throughput decision from the leaderboard.** Measure your own path:
+different, and the gap is routinely a multiple in either direction — not a few
+percent. **Do not make a latency or throughput decision from the leaderboard.**
+Measure your own path:
 
 ```bash
 scripts/bench_throughput.sh <provider>/<model>[:variant]
@@ -85,8 +80,8 @@ Two naive approaches both fail:
    prefill makes generation look impossibly fast and inflates the rate several-fold.
 2. **Differential timing with too few samples.** Subtracting a short run from a
    long run does cancel startup — but only if the decode delta exceeds the
-   startup jitter. At small token deltas and n=2, observed within-model spread
-   was 1.7x-4.6x: pure noise.
+   startup jitter. At small token deltas and low repeat counts, run-to-run
+   spread can exceed the difference you are trying to measure.
 
 `bench_throughput.sh` therefore uses a large token delta, repeats, and
 **refuses to print a number when the spread exceeds a threshold** rather than

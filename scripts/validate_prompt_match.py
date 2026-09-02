@@ -4,15 +4,6 @@
 # dependencies = []
 # ///
 
-# ─── How to run ───
-# 1. Install uv (if not installed):
-#      curl -LsSf https://astral.sh/uv/install.sh | sh
-# 2. Run directly from a bare clone (no dependencies to install):
-#      python3 scripts/validate_prompt_match.py <model-id> [OPTIONS]
-# 3. Or make executable and run with uv:
-#      chmod +x scripts/validate_prompt_match.py
-#      ./scripts/validate_prompt_match.py <model-id> [OPTIONS]
-# ──────────────────
 
 from __future__ import annotations
 
@@ -97,7 +88,6 @@ DETECTORS: Final[tuple[tuple[str, Detector], ...]] = (
     ("isGpt5_5Model", _is_gpt_5_5_model),
     ("isGpt5_6Model", _is_gpt_5_6_model),
     ("isGptNativeSisyphusModel", _is_gpt_native_sisyphus_model),
-    ("isClaudeOpus46Model", lambda name: _is_claude_model(name, "claude-opus-4-6")),
     ("isClaudeOpus47Model", lambda name: _is_claude_model(name, "claude-opus-4-7")),
     ("isClaudeOpus48Model", lambda name: _is_claude_model(name, "claude-opus-4-8")),
     ("isClaudeOpus5Model", lambda name: _is_claude_model(name, "claude-opus-5")),

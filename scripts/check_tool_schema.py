@@ -4,27 +4,15 @@
 # dependencies = []
 # ///
 
-# ─── How to run ───
-# 1. Install uv (if not installed):
-#      curl -LsSf https://astral.sh/uv/install.sh | sh
-# 2. Run directly (no venv, no pip install needed):
-#      uv run check_tool_schema.py --file schema.json
-# 3. Or make executable and run:
-#      chmod +x check_tool_schema.py && ./check_tool_schema.py --stdin
-# ──────────────────
 
 """Find JSON-Schema constructs that break strict tool-schema providers.
 
-This checker is motivated by an unresolved OpenCode compatibility bug affecting
-every Google Gemini model. The service returns HTTP 400 with a boolean ``true``
-inside an enum that it requires to contain strings. ``opencode run --pure``
-changes the failing declaration index, so the offending schema is not from an
-external plugin. No project-owned boolean enum was found. An MCP-supplied schema
-or provider serialization remains likely, but the bug has NOT been root-caused.
-Status: UNRESOLVED.
+Google/Gemini rejects non-string ``enum`` and ``const`` values; other providers
+reject union ``type`` arrays and parameter-level composition keywords. Run this
+over a tool schema before pointing an agent at a stricter provider.
 
-Reproduce with:
-    opencode run -m google/gemini-3.5-flash-lite --format json "hello"
+See docs/known-issues.md for an unresolved Gemini failure this checker was
+written to help narrow down.
 """
 
 from __future__ import annotations
@@ -47,8 +35,6 @@ COMPOSITION_KEYWORDS: Final = ("oneOf", "anyOf", "allOf")
 GEMINI_PROVIDERS: Final = ("Google/Gemini",)
 STRICT_PROVIDERS: Final = ("strict JSON-Schema providers",)
 ALL_PROVIDERS: Final = ("all providers",)
-REPRO_COMMAND: Final = 'opencode run -m google/gemini-3.5-flash-lite --format json "hello"'
-UNRESOLVED_NOTE: Final = f"Unresolved Gemini compatibility bug (not root-caused): a tool enum contains boolean true. Reproduce: {REPRO_COMMAND}"
 
 
 class FindingRecord(TypedDict):
@@ -250,17 +236,11 @@ def print_human(groups: FindingGroups) -> None:
             providers = ", ".join(finding.affected_providers)
             print(f"{finding.path or '/'} | {finding.kind} | {finding.detail} | {providers}")
         print()
-    print(UNRESOLVED_NOTE)
 
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Scan tool JSON schemas for constructs rejected by strict model providers.",
-        epilog=(
-            "STATUS: UNRESOLVED and not root-caused. Every Google Gemini model currently fails in OpenCode "
-            "when a tool enum contains boolean true. Reproduce with:\n  " + REPRO_COMMAND
-        ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--file", type=Path, dest="file_path", help="read JSON from a schema file")
@@ -291,7 +271,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = {
             "errors": [finding.to_record() for finding in groups[0]],
             "warnings": [finding.to_record() for finding in groups[1]],
-            "note": UNRESOLVED_NOTE,
         }
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

@@ -1,11 +1,11 @@
 # Known issues
 
-Findings from real use. Where something is unresolved, it says so — an honest
-"unknown" is more useful than a confident guess.
+Findings from real use. Where something is unresolved, it says so.
 
 ## 1. Gemini models fail on tool calls (UNRESOLVED)
 
-**Symptom.** Every `google/*` model returns HTTP 400 as soon as tools are in play:
+**Symptom.** In the environment where this was observed, every `google/*` model
+returned HTTP 400 as soon as tools were in play:
 
 ```
 Invalid value at 'tools[0].function_declarations[143].parameters
@@ -21,28 +21,10 @@ declaring an `enum` whose first member is the boolean `true`.
 opencode run -m google/gemini-3.5-flash-lite --format json "hello"
 ```
 
-**What is established:**
-
-- It reproduces with `opencode run --pure`, which disables external plugins. The
-  offending index shifts (`143` -> `110`), so the tool set shrinks but the
-  offender survives. **It is therefore not an external plugin.**
-- A source search of the installation found no project-owned schema with a
-  boolean enum. The only boolean-enum hits were unrelated test fixtures inside
-  dependency trees.
-
-**Narrowing it down.** OMO injects its own MCP servers (`websearch`, `context7`,
-`grep_app`, `lsp`) at **runtime** through the OpenCode plugin API — they are
-never written to disk, and `opencode mcp list` cannot see them. That explains why
-a filesystem search found nothing, and it explains the index shift: `--pure`
-disables the plugin and removes its injected tools (`143` -> `110`, so 33 tools
-left the payload).
-
-Critically, **the offender survived `--pure`**. So it is *not* in OMO's injected
-set. It is in the tool surface that remains without the plugin: OpenCode's own
-builtin tools, or an MCP configured natively under the `mcp` key in
-`opencode.json`. A natively-configured MCP with a large tool count is the leading
-candidate, since index 110 is well beyond the builtin tool count (the registry
-exposes roughly 12-38 tools).
+**What is established.** It still reproduces under `opencode run --pure`, which
+disables external plugins — so the offending schema is neither from a plugin nor
+from the MCP servers OMO injects at runtime. That leaves OpenCode's builtin
+tools, or an MCP configured natively under the `mcp` key in `opencode.json`.
 
 **What is NOT established:** which specific tool. **Root cause unknown.**
 
@@ -59,10 +41,10 @@ bunx oh-my-openagent doctor --verbose
 python3 scripts/check_tool_schema.py --file tools.json
 ```
 
-**Consequence for configuration.** Until this is fixed in your environment, any
-agent or category whose *primary* is a Gemini model may be non-functional while
-tools are enabled, and any Gemini entry in a fallback chain is a dead rung.
-Verify before relying on one.
+**Consequence for configuration.** Where this reproduces, any agent or category
+whose *primary* is a Gemini model may be non-functional while tools are enabled,
+and any Gemini entry in a fallback chain is a dead rung. Verify before relying
+on one.
 
 ## 2. `doctor` reports working providers as unavailable (FALSE POSITIVE)
 
@@ -104,20 +86,7 @@ python3 scripts/doctor_check.py --version <pinned>         # authoritative: what
 bunx oh-my-openagent config migrate --dry-run              # preview the rewrite
 ```
 
-## 4. Leaderboard throughput figures do not describe your deployment
-
-Measured against published AA numbers on one real environment:
-
-| Model | Published | Measured | Ratio |
-|---|---|---|---|
-| A GLM-5.3-Flash deployment | 43 tok/s | 255.4 tok/s (16% spread, n=3) | 5.9x |
-| A Claude Opus 5 (xhigh) deployment | 51 tok/s | 157.3 tok/s (18% spread, n=2) | 3.1x |
-
-Both were multiples *faster* than published. Never make a latency decision from
-the leaderboard — see `docs/methodology.md`, and measure with
-`scripts/bench_throughput.sh`.
-
-## 5. The upstream leaderboard scraper needs patching
+## 4. The upstream leaderboard scraper needs patching
 
 The vendored scraper had two breakages against the current site. Both are fixed
 here and documented in `vendor/aa-scraper/PATCHES.md`:

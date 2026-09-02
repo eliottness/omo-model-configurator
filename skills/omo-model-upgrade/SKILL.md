@@ -80,8 +80,8 @@ Read `docs/methodology.md` before quoting any leaderboard column. In particular 
 high non-hallucination rate usually means the model **abstains** more, not that
 it knows more — decompose it before using it as an argument.
 
-If throughput or latency matters, measure it; leaderboard tok/s is measured on
-the vendor's endpoint and has been observed off by 3-6x:
+If throughput or latency matters, measure it. Leaderboard tok/s is measured on
+the vendor's own endpoint and does not transfer to yours:
 
 ```bash
 scripts/bench_throughput.sh <provider>/<model>[:variant]
@@ -107,11 +107,3 @@ python3 scripts/check_tool_schema.py --file <tools.json>
    prove which is which. Do not report a pre-existing warning as something you
    caused, or vice versa.
 6. Verify at least one changed model with a live call.
-
-## Anti-patterns
-
-- Recommending a model without checking its prompt family.
-- Quoting leaderboard tok/s as if it described the user's deployment.
-- Treating a `doctor` warning as real without a live call.
-- Reordering or dropping an entry the user asked to keep.
-- Reporting an unmeasured number as measured.

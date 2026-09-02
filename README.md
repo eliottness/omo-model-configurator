@@ -24,8 +24,8 @@ models the capability cache does not know. A benchmark win is not sufficient
 evidence that a swap is safe.
 
 On top of that, the leaderboard numbers people reach for are easy to misread:
-throughput figures are measured on the vendor's own endpoint (observed off by
-**3-6x** locally), and the hallucination metric rewards abstaining rather than
+throughput figures are measured on the vendor's own endpoint and do not describe
+your deployment, and the hallucination metric rewards abstaining rather than
 knowing.
 
 This repo makes both problems checkable.
@@ -68,7 +68,7 @@ with no `pip install`.
 | Doc | Contents |
 |---|---|
 | [`docs/prompt-families.md`](docs/prompt-families.md) | The dispatch table, the detector landmines, and the two *different* prompt-selection mechanisms. |
-| [`docs/methodology.md`](docs/methodology.md) | How to read Artificial Analysis columns without fooling yourself, including the recovered Omniscience formulas. |
+| [`docs/methodology.md`](docs/methodology.md) | How to read Artificial Analysis columns without fooling yourself. |
 | [`docs/config-surface.md`](docs/config-surface.md) | The config keys that actually affect model behaviour, the **three** places model names are matched (prompt, guard hooks, capability heuristics), and the two independent fallback systems. |
 | [`docs/known-issues.md`](docs/known-issues.md) | Real breakages: Gemini tool-schema 400 (unresolved), `doctor` false positives, deprecated config keys. |
 
@@ -79,7 +79,9 @@ git clone https://github.com/eliottness/omo-model-configurator.git
 cd omo-model-configurator
 
 # 1. does a candidate model even get the right prompt?
-python3 scripts/validate_prompt_match.py openai/gpt-5.6-sol --explain
+#    this one exits 1: gpt-oss-120b has no Sisyphus branch, yet the variant
+#    surfaces confidently match it as `gpt`
+python3 scripts/validate_prompt_match.py exampleprovider/gpt-oss-120b --explain
 
 # 2. lint an existing config, statically and via OMO's own diagnostics
 python3 scripts/lint_omo_config.py examples/example-omo.jsonc
@@ -101,15 +103,12 @@ python3 -m pytest tests/ -q
 
 ## What this repo does not claim
 
-- **The Gemini tool-schema 400 is not root-caused.** It is documented with a
-  reproduction and a scanner; the offending tool has not been isolated. See
-  `docs/known-issues.md`.
 - **Prompt-family notes are pinned observations, not the source of truth.** They
   reflect OMO at `4480fd41ab26ceea0e4bfd1584d495b748b95dfa`. Re-verify against
   source; three GPT detector bodies in `validate_prompt_match.py` are marked
   INFERRED because they were not captured verbatim.
-- **Throughput numbers here describe the machine they were measured on.** That is
-  the entire point — measure your own.
+- **Known breakages, including one that is not root-caused, are in
+  [`docs/known-issues.md`](docs/known-issues.md).**
 
 ## Licence
 
