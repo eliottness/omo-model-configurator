@@ -1,0 +1,24 @@
+omo-model-configurator
+Copyright (C) 2026 the omo-model-configurator contributors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See the LICENSE file for the full text.
+
+--------------------------------------------------------------------------------
+VENDORED THIRD-PARTY SOFTWARE
+--------------------------------------------------------------------------------
+
+vendor/aa-scraper/
+    Artificial Analysis Leaderboards Scraper
+    Upstream:  https://github.com/deyil/artificial-analysis-leaderboards-scraper
+    Author:    deyil
+    License:   GNU General Public License v3.0
+    Pinned at: 99167bae89b203e427c48f04edcf7366eae04ef5
+
+    The upstream LICENSE is preserved unmodified at vendor/aa-scraper/LICENSE.
+    Local modifications are documented in vendor/aa-scraper/PATCHES.md.
+
+    Because this GPL-3.0 component is distributed as part of this repository,
+    this repository as a whole is licensed under GPL-3.0.
