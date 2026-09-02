@@ -5,8 +5,21 @@ Tooling and a written procedure for upgrading an
 configuration — safely, with evidence, and without silently downgrading your
 agents.
 
-Point an AI agent at this repository and it will follow the procedure in
-[`AGENTS.md`](AGENTS.md).
+## Point an agent at it
+
+```
+Do a dry run of this: https://github.com/eliottness/omo-model-configurator
+```
+
+The agent follows [`AGENTS.md`](AGENTS.md) and should come back with **a table,
+one row per agent and per category in your config** — current model, the prompt
+family it actually resolves to, a proposed model, and a `swap` / `keep` /
+`blocked` verdict. A dry run changes nothing on disk.
+
+If an agent instead starts running `oh-my-openagent config migrate`, or reports
+`doctor` output with no comparison table, it has not followed the runbook — the
+required output is spelled out in [`AGENTS.md`](AGENTS.md) under
+"The deliverable".
 
 ## Why this exists
 
@@ -77,6 +90,9 @@ with no `pip install`.
 ```bash
 git clone https://github.com/eliottness/omo-model-configurator.git
 cd omo-model-configurator
+
+# 0. the full audit an agent runs, in order (edits nothing):
+#      AGENTS.md -> "The runbook", steps 1-8
 
 # 1. does a candidate model even get the right prompt?
 #    this one exits 1: gpt-oss-120b has no Sisyphus branch, yet the variant

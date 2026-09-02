@@ -82,7 +82,9 @@ the model name:
 
 **`fallback_models` is deprecated in favour of `models`.** `doctor` reports it
 under its Deprecated Reasoning Keys group, and
-`bunx oh-my-openagent config migrate` can rewrite it (`--dry-run` first).
+`bunx oh-my-openagent config migrate` can rewrite it (`--dry-run` first). That
+is a separate task from a model upgrade, and its `--dry-run` is unrelated to a
+dry run of the workflow in `AGENTS.md`.
 
 ## Keys worth knowing when changing models
 

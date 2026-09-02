@@ -80,6 +80,11 @@ Deprecated reasoning config key
 It is a warning, not a break — existing configs keep working — but it fires once
 per agent that uses the old key, which drowns out real findings.
 
+Migrating the keys is a **separate task from a model upgrade**, and the
+`--dry-run` flag below is unrelated to a dry run of the upgrade workflow (see
+`AGENTS.md`). Do not run `config migrate` while auditing models unless the user
+asked for a key migration.
+
 ```bash
 python3 scripts/lint_omo_config.py <config.jsonc>          # static: flags every occurrence
 python3 scripts/doctor_check.py --version <pinned>         # authoritative: what OMO itself reports

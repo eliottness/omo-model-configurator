@@ -1,6 +1,6 @@
 ---
 name: omo-model-upgrade
-description: Use when upgrading, reviewing, or changing which models an oh-my-openagent (OMO) configuration uses - including "upgrade my OMO models", "what should I change in omo.jsonc", "is there a better model for my agents", "add <model> to my config", "review my agent model config", or after a provider ships a new model. Enforces reading the upstream agent-model matching guide first, then validating that each candidate model actually resolves to an intended prompt family in OMO's source rather than a silent fallback prompt. Not for editing non-OMO agent configs, and not for general model benchmarking questions unrelated to a config change.
+description: Use when upgrading, reviewing, auditing, or dry-running which models an oh-my-openagent (OMO) configuration uses - including "dry run my OMO config", "audit my models", "upgrade my OMO models", "what should I change in omo.jsonc", "is there a better model for my agents", "add <model> to my config", "review my agent model config", or after a provider ships a new model. Default mode is a no-edit audit that ends in a per-agent proposal table. Enforces reading the upstream agent-model matching guide first, then validating that each candidate model actually resolves to an intended prompt family in OMO's source rather than a silent fallback prompt. Not for editing non-OMO agent configs, and not for general model benchmarking questions unrelated to a config change.
 ---
 
 # Upgrading an OMO model configuration
@@ -10,7 +10,39 @@ OMO picks a system prompt by pattern-matching the model **name**, so a model tha
 matches nothing silently gets a generic fallback prompt. A "better" model on
 paper can be a downgrade in practice.
 
-Work through these phases in order. Do not skip to phase 4.
+## Phase 0 — Fix the mode and the output before running anything
+
+**Default mode is DRY RUN: propose, edit nothing.** Only switch to APPLY after
+the user approves a specific table you have already shown them.
+
+> "Dry run" means "propose without editing". It is **unrelated** to
+> `bunx oh-my-openagent config migrate --dry-run`, which previews a
+> deprecated-key rewrite and is not part of this workflow.
+
+**The deliverable in both modes is a per-slot proposal table** — one row per
+agent and per category in the user's config, with current model, current prompt
+family, proposed model, proposed prompt family, score and cost deltas, and a
+verdict of `swap` / `keep` / `blocked`. The exact column layout and the rules for
+filling it in are in `AGENTS.md` under "The deliverable". A run that produces no
+table is not finished.
+
+Enumerate the slots first, so you know how many rows you owe:
+
+```bash
+python3 - <<'EOF'
+import json, pathlib, re
+raw = (pathlib.Path.home() / ".omo/omo.jsonc").read_text()
+body = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("//"))
+cfg = json.loads(re.sub(r",(?=\s*[}\]])", "", body))
+oc = cfg.get("[opencode]", {})
+for kind, label in (("agents", "agent"), ("categories", "category")):
+    for name in oc.get(kind) or {}:
+        print(f"{label}:{name}")
+EOF
+```
+
+Work through the phases in order. **Phase 4 is mandatory — a proposal without
+leaderboard data is a guess.**
 
 ## Phase 1 — Read the matching guide (mandatory, first)
 
@@ -73,8 +105,14 @@ python3 scripts/doctor_check.py --version <pinned> --strict   # what OMO itself 
 ```
 
 Static linting cannot see effective resolution or capability fallback; `doctor`
-can. Run both. If `doctor` reports a deprecated key,
-`bunx oh-my-openagent config migrate --dry-run` previews the rewrite.
+can. Run both.
+
+`scrape_leaderboard.sh` needs network. If it fails, **say so and stop** — do not
+fall back on remembered model rankings.
+
+Deprecated-key findings are **reported here, not fixed**. Migrating keys
+(`oh-my-openagent config migrate`) is a different task; do not run it as part of
+an upgrade unless the user asks for it specifically.
 
 Read `docs/methodology.md` before quoting any leaderboard column. In particular a
 high non-hallucination rate usually means the model **abstains** more, not that
@@ -94,16 +132,27 @@ compatibility first:
 python3 scripts/check_tool_schema.py --file <tools.json>
 ```
 
-## Phase 5 — Propose, then change
+## Phase 5 — Present the table, then stop
 
-1. **Back up the config and verify the backup** before editing.
-2. Present the proposed change per agent/category with a concrete reason —
-   prompt family, capability, price, and what you could not verify.
+Emit the per-slot proposal table described in Phase 0, one row per slot, plus an
+explicit list of what you could not verify. Give each row a concrete reason:
+prompt family, capability, price.
+
+**In DRY RUN you are done here. Change no files, even if every check passed.**
+Wait for the user to approve specific rows.
+
+## Phase 6 — Apply (only on explicit approval of a specific table)
+
+1. **Back up the config and verify the backup** before editing:
+   ```bash
+   cp ~/.omo/omo.jsonc ~/.omo/omo.jsonc.bak-$(date +%Y%m%dT%H%M%S)
+   diff ~/.omo/omo.jsonc ~/.omo/omo.jsonc.bak-*    # must be empty
+   ```
+2. Make the smallest edit achieving the approved rows.
 3. Honour "keep X as-is" **mechanically**: count occurrences of X before and
    after and show they match. Do not rely on having been careful.
-4. Prefer the smallest change achieving the goal.
-5. Re-run `lint_omo_config.py` and `doctor_check.py` afterwards, and distinguish
+4. Re-run `lint_omo_config.py` and `doctor_check.py` afterwards, and distinguish
    pre-existing findings from ones you introduced — run against the backup to
    prove which is which. Do not report a pre-existing warning as something you
    caused, or vice versa.
-6. Verify at least one changed model with a live call.
+5. Verify at least one changed model with a live call.
