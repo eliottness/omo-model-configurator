@@ -1,14 +1,27 @@
 #!/usr/bin/env bash
 # Gate: no personal / organisation-specific strings may reach this public repo.
+# Scans exactly what could be published - tracked files, plus untracked files
+# that are not gitignored - so a local .venv or a scraped data/ directory
+# cannot fail the gate on strings that were never going to ship.
 # Exits 0 only when the tree is clean.
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIST="$ROOT/forbidden_strings.txt"
 [ -f "$LIST" ] || { echo "FATAL: $LIST missing" >&2; exit 2; }
-hits="$(grep -RIn --fixed-strings --file="$LIST" \
-          --exclude-dir=.git --exclude-dir=__pycache__ --exclude-dir=.pytest_cache \
-          --exclude="forbidden_strings.txt" --exclude="scrub_check.sh" \
-          "$ROOT" || true)"
+git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 \
+  || { echo "FATAL: $ROOT is not a git repository" >&2; exit 2; }
+cd "$ROOT"
+files=()
+while IFS= read -r -d '' file; do
+  case "$file" in
+    forbidden_strings.txt | scripts/scrub_check.sh) continue ;;
+  esac
+  files+=("$file")
+done < <(git ls-files -z --cached --others --exclude-standard)
+hits=""
+if [ "${#files[@]}" -gt 0 ]; then
+  hits="$(grep -In --fixed-strings --file="$LIST" -- "${files[@]}" || true)"
+fi
 if [ -n "$hits" ]; then
   echo "SCRUB GATE FAILED - forbidden strings present:" >&2
   echo "$hits" >&2

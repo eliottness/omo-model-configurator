@@ -5,14 +5,6 @@
 # ///
 """# noqa: SIZE_OK - requested single-file CLI for bare-clone portability."""
 
-# ─── How to run ───
-# 1. Install uv (if not installed):
-#      curl -LsSf https://astral.sh/uv/install.sh | sh
-# 2. Run directly (no venv, no pip install needed):
-#      uv run match_config.py --config omo.jsonc --leaderboard leaderboard.csv
-# 3. Or use Python directly:
-#      python3 match_config.py --config omo.jsonc --leaderboard leaderboard.csv
-# ──────────────────
 
 from __future__ import annotations
 
@@ -59,7 +51,9 @@ TIER_RANK: Final = {
 }
 REASONING_TIER: Final = {
     "off": "non-reasoning",
-    "minimal": "minimal",
+    # No leaderboard row is ever published as a "minimal" tier; REASONING_RANK
+    # already treats minimal and low as the same rank, so map it to low.
+    "minimal": "low",
     "low": "low",
     "medium": "medium",
     "high": "high",
@@ -67,6 +61,7 @@ REASONING_TIER: Final = {
     "max": "max",
     "auto": "auto",
 }
+CHAIN_KEYS: Final = ("models", "fallback_models")
 REASONING_RANK: Final = {
     "off": 0,
     "minimal": 1,
@@ -194,6 +189,12 @@ def parse_reasoning(value: JsonValue | None) -> str:
     return reasoning
 
 
+def effective_reasoning(entry: dict[str, JsonValue]) -> JsonValue | None:
+    """Return `reasoning`, falling back to the equivalent `variant` key."""
+    reasoning = entry.get("reasoning")
+    return reasoning if reasoning is not None else entry.get("variant")
+
+
 def parse_model_entry(value: JsonValue, configured_for: str) -> ConfiguredModel:
     if isinstance(value, str):
         return ConfiguredModel(configured_for, value, "auto")
@@ -207,35 +208,42 @@ def parse_model_entry(value: JsonValue, configured_for: str) -> ConfiguredModel:
             f"model entry for {configured_for} is missing a string model"
         )
     return ConfiguredModel(
-        configured_for, model, parse_reasoning(value.get("reasoning"))
+        configured_for, model, parse_reasoning(effective_reasoning(value))
     )
+
+
+def extract_entity_models(
+    entity: dict[str, JsonValue], configured_for: str
+) -> list[ConfiguredModel]:
+    configured: list[ConfiguredModel] = []
+    model = entity.get("model")
+    if model is not None:
+        configured.append(
+            parse_model_entry(
+                {
+                    "model": model,
+                    "reasoning": entity.get("reasoning"),
+                    "variant": entity.get("variant"),
+                },
+                configured_for,
+            )
+        )
+    for chain_key in CHAIN_KEYS:
+        chain = entity.get(chain_key)
+        if isinstance(chain, list):
+            configured.extend(
+                parse_model_entry(entry, configured_for) for entry in chain
+            )
+    return configured
 
 
 def extract_configured_models(config: dict[str, JsonValue]) -> list[ConfiguredModel]:
     opencode = as_mapping(config.get("[opencode]"))
     configured: list[ConfiguredModel] = []
-    for agent_name, agent_value in as_mapping(opencode.get("agents")).items():
-        agent = as_mapping(agent_value)
-        configured_for = f"agent:{agent_name}"
-        model = agent.get("model")
-        if model is not None:
-            configured.append(
-                parse_model_entry(
-                    {"model": model, "reasoning": agent.get("reasoning")},
-                    configured_for,
-                )
-            )
-        fallback_models = agent.get("fallback_models")
-        if isinstance(fallback_models, list):
+    for section, prefix in (("agents", "agent"), ("categories", "category")):
+        for name, value in as_mapping(opencode.get(section)).items():
             configured.extend(
-                parse_model_entry(entry, configured_for) for entry in fallback_models
-            )
-    for category_name, category_value in as_mapping(opencode.get("categories")).items():
-        models = as_mapping(category_value).get("models")
-        if isinstance(models, list):
-            configured.extend(
-                parse_model_entry(entry, f"category:{category_name}")
-                for entry in models
+                extract_entity_models(as_mapping(value), f"{prefix}:{name}")
             )
     return configured
 

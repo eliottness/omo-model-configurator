@@ -283,3 +283,25 @@ def test_malformed_jsonc_exits_two(tmp_path: Path) -> None:
     assert payload["findings"] == []
     assert payload["summary"] == {"error": 0, "warning": 0, "info": 0}
     assert isinstance(payload["error"], str)
+
+
+def test_variant_distinguishes_primary_from_fallback_entry(tmp_path: Path) -> None:
+    # Given a primary and a fallback that differ only by `variant`
+    config = (
+        '{"[opencode]":{"agents":{"planner":{'
+        '"model":"exampleprovider/alpha","variant":"high",'
+        '"fallback_models":[{"model":"exampleprovider/alpha","variant":"low"}]'
+        "}}}}"
+    )
+
+    # When
+    result = run_linter(tmp_path, config)
+
+    # Then they are not reported as the same pair
+    payload = json.loads(result.stdout)
+    duplicates = [
+        finding
+        for finding in payload["findings"]
+        if finding["rule_id"] == "primary-duplicated-in-fallback"
+    ]
+    assert duplicates == []

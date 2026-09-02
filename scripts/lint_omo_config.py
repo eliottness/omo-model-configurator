@@ -4,14 +4,6 @@
 # dependencies = []
 # ///
 
-# --- How to run ---
-# 1. Install uv (if not installed):
-#      curl -LsSf https://astral.sh/uv/install.sh | sh
-# 2. Run directly:
-#      uv run lint_omo_config.py CONFIG.jsonc [OPTIONS]
-# 3. Or make executable and run:
-#      chmod +x lint_omo_config.py && ./lint_omo_config.py CONFIG.jsonc [OPTIONS]
-# ------------------
 
 from __future__ import annotations
 
@@ -190,16 +182,22 @@ def _find_deprecated_keys(value: JsonValue, location: str, state: LintState) -> 
             _find_deprecated_keys(child, f"{location}[{index}]", state)
 
 
+def _effective_tier(entity: JsonObject) -> JsonValue | None:
+    """Return `reasoning`, falling back to the equivalent `variant` key."""
+    reasoning = entity.get("reasoning")
+    return reasoning if reasoning is not None else entity.get("variant")
+
+
 def _lint_agent(entity: JsonObject, location: str, state: LintState) -> None:
     primary: ModelPair | None = None
     if "model" in entity:
         model = entity["model"]
         _lint_model(model, f"{location}.model", state)
-        reasoning = entity.get("reasoning")
         if "reasoning" in entity:
-            _lint_reasoning(reasoning, f"{location}.reasoning", state)
-        if isinstance(model, str) and (reasoning is None or isinstance(reasoning, str)):
-            primary = (model, reasoning)
+            _lint_reasoning(entity.get("reasoning"), f"{location}.reasoning", state)
+        tier = _effective_tier(entity)
+        if isinstance(model, str) and (tier is None or isinstance(tier, str)):
+            primary = (model, tier)
     _lint_chains((entity, location, primary), state)
 
 
@@ -240,12 +238,12 @@ def _lint_entry(entry: JsonValue, location: str, state: LintState) -> ModelPair 
         _lint_model(entry, location, state)
         return None
     model = entry.get("model")
-    reasoning = entry.get("reasoning")
     _lint_model(model, f"{location}.model", state)
     if "reasoning" in entry:
-        _lint_reasoning(reasoning, f"{location}.reasoning", state)
-    if isinstance(model, str) and (reasoning is None or isinstance(reasoning, str)):
-        return (model, reasoning)
+        _lint_reasoning(entry.get("reasoning"), f"{location}.reasoning", state)
+    tier = _effective_tier(entry)
+    if isinstance(model, str) and (tier is None or isinstance(tier, str)):
+        return (model, tier)
     return None
 
 
