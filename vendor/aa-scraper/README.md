@@ -1,0 +1,205 @@
+# Artificial Analysis Leaderboard Scraper
+
+A Python web scraper designed to extract leaderboard data from the [Artificial Analysis website](https://artificialanalysis.ai/leaderboards/providers/prompt-options/single/medium_coding?deprecation=all) and save it to a CSV file.
+
+## Features
+ 
+- Extracts leaderboard data from Artificial Analysis website, including dynamic content rendered by JavaScript using Playwright
+- Handles fetching HTML content with retry mechanism and exponential backoff, and user-agent rotation
+- Parses HTML content using Beautiful Soup 4, including dynamic identification and extraction of table headers
+- Outputs data to CSV format with proper error handling and data validation using Pandera
+- Comprehensive logging for debugging and monitoring
+- Configurable through YAML configuration file with environment variable overrides
+
+## Project Structure
+ 
+```
+artificial-analysis-leaderboards-scraper/
+├── src/
+│   ├── main.py             # Entry point script
+│   ├── components/
+│   │   ├── config.py       # Configuration settings
+│   │   ├── formatter.py    # Data formatting and CSV output
+│   │   ├── logger.py       # Logging configuration
+│   │   ├── parser.py       # HTML parsing and data extraction
+│   │   └── scraper.py      # Core HTTP request handling
+├── specs/
+│   └── architecture.md     # Technical architecture document
+├── tests/
+│   ├── test_config.py
+│   ├── test_formatter.py
+│   ├── test_main.py
+│   ├── test_parser.py
+│   ├── test_scraper.py
+│   └── test_scraper_spinner.py
+├── config.yaml             # Configuration file
+├── requirements.txt        # Python dependencies
+├── LICENSE                 # Project license information
+└── README.md               # Project documentation
+```
+
+## Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/deyil/artificial-analysis-leaderboards-scraper.git
+   cd artificial-analysis-leaderboards-scraper
+   ```
+
+2. Create a virtual environment (optional but recommended):
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+3. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Install the Playwright browser used by the scraper:
+   ```bash
+   python -m playwright install chromium
+   ```
+
+5. Install test dependencies when working locally:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+## Usage
+
+Run the scraper with:
+```bash
+python src/main.py
+```
+
+If Playwright reports that the browser executable is missing, install it with:
+```bash
+python -m playwright install chromium
+```
+
+## Testing
+
+Run the test suite with:
+```bash
+pytest -q
+```
+
+The scraper will:
+1. Load configuration from `config.yaml`
+2. Fetch HTML content from the target URL
+3. Parse the leaderboard data from the HTML
+4. Write the data to a CSV file
+
+## Configuration
+
+The scraper can be configured through the `config.yaml` file:
+
+```yaml
+target_url: "https://artificialanalysis.ai/leaderboards/providers/prompt-options/single/medium_coding?deprecation=all"
+output_csv_path: "data/leaderboard.csv"
+output_add_timestamp: true
+output_localize_numbers: true
+output_locale: "el_GR"
+```
+
+- `target_url`: The URL of the leaderboard to scrape
+- `output_csv_path`: The path where the CSV output will be saved
+- `output_add_timestamp`: When `true`, appends `_YYYY-MM-DDTHH-MM-SS` to the filename; set it to `false` to write the exact path, such as `data/leaderboard.csv`
+- `output_localize_numbers`: When `true` (default), decimal-looking numeric values (e.g. `85.5`, `$11.25`) are formatted using the configured locale before writing to CSV. Set to `false` to write scraped values as-is. Can be overridden with the `OUTPUT_LOCALIZE_NUMBERS` environment variable.
+- `output_locale`: The Babel locale string used to format decimal values (default: `"el_GR"` for Greek). Can be overridden with the `OUTPUT_LOCALE` environment variable.
+
+## Components
+ 
+### Scraper (`src/components/scraper.py`)
+Handles fetching HTML content from the target website, specifically designed for dynamic content:
+- Fetches HTML content from the leaderboard URL using Playwright for JavaScript rendering
+- Implements retry logic with exponential backoff and user-agent rotation
+- Handles HTTP errors and timeouts
+- Provides real-time feedback with a terminal spinner during Playwright execution
+ 
+### Parser (`src/components/parser.py`)
+Parses HTML content and extracts structured data:
+- Uses Beautiful Soup 4 for HTML parsing
+- Identifies and extracts table headers dynamically, including from complex table structures
+- Extracts data from table rows, including provider names from image alt text or filenames
+ 
+### Formatter (`src/components/formatter.py`)
+Formats extracted data and outputs to CSV:
+- Writes data to CSV files with proper error handling
+- Validates data integrity using Pandera schemas
+- Appends timestamp to output filenames in format _YYYY-MM-DDTHH-MM-SS unless `output_add_timestamp` is disabled
+- Optionally localizes decimal-looking numeric values (e.g. `85.5` → `85,5`) using Babel with a configurable locale
+
+## GitHub Actions
+
+This repository includes a manual workflow at `.github/workflows/run-scraper.yml`.
+
+Trigger it from the Actions tab with `Run workflow` to:
+- install the scraper dependencies and Playwright browser
+- run the scraper in GitHub Actions
+- upload `data/leaderboard.csv` as a workflow artifact for download from the run summary
+ 
+### Config (`src/components/config.py`)
+Manages application configuration:
+- Loads configuration from YAML file
+- Provides default values and supports environment variable overrides
+- Validates configuration parameters
+ 
+### Logger (`src/components/logger.py`)
+Configures and manages application logging:
+- Outputs to both console (DEBUG level) and file (INFO level)
+- Uses standard logging format: `%(asctime)s - %(name)s - %(levelname)s - %(message)s`
+
+## Logging
+
+The scraper uses structured logging with multiple levels:
+- Console output: DEBUG level
+- File output (`logs/scraper.log`): INFO level
+
+Log format: `%(asctime)s - %(name)s - %(levelname)s - %(message)s`
+
+## Error Handling
+
+The scraper implements comprehensive error handling:
+- Network errors: Retry mechanism with exponential backoff
+- Parsing errors: Graceful handling of malformed data
+- File I/O errors: Proper error reporting and handling
+
+## Terminal Spinner Feature
+
+A terminal spinner has been added to provide real-time feedback during the Playwright rendering process. This feature uses the `rich` library to display a spinner in the terminal, indicating that the scraping process is in progress.
+
+The spinner displays the following status messages during execution:
+- "Rendering page with Playwright..."
+- "Launching browser..."
+- "Navigating to page..."
+- "Waiting for page to load..."
+- "Clicking headers..." (when header buttons are present)
+- "Extracting HTML..."
+
+## Dependencies
+
+- beautifulsoup4: HTML parsing library
+- pyyaml: YAML parser and emitter for Python
+- playwright: For rendering JavaScript-heavy pages
+- pandera: For data validation
+- pandas: For data manipulation
+- rich: For displaying the terminal spinner
+- Babel: For locale-aware formatting of decimal numeric values
+
+## License
+
+This project is licensed under the GNU General Public License - see the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a new branch for your feature
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## Note
+The reason for creating this scraper is that viewing and sorting tables directly on the Artificial Analysis website is not efficient. By exporting the data to a CSV file, users can easily sort and filter the scraped table data using their preferred spreadsheet application or data analysis tools.
