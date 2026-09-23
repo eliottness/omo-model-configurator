@@ -7,3 +7,12 @@ data/
 *.log
 .DS_Store
 .ruff_cache/
+# AA measurements and generated audit evidence are local-only.
+*.csv
+*.har
+*.manifest.json
+*.snapshot.json
+audit-output/
+snapshots/
+captures/
+.audit/

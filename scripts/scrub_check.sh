@@ -15,6 +15,10 @@ files=()
 while IFS= read -r -d '' file; do
   case "$file" in
     forbidden_strings.txt | scripts/scrub_check.sh) continue ;;
+    data/* | */data/* | audit-output/* | */audit-output/* | snapshots/* | */snapshots/* | captures/* | */captures/* | .audit/* | */.audit/* | *.csv | *.har | *.manifest.json | *.snapshot.json)
+      echo "SCRUB GATE FAILED - local-only data artifact: $file" >&2
+      exit 1
+      ;;
   esac
   files+=("$file")
 done < <(git ls-files -z --cached --others --exclude-standard)

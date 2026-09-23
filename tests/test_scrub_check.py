@@ -81,3 +81,27 @@ def test_clean_repo_passes(tmp_path: Path) -> None:
 
     # Then
     assert result.returncode == 0, result.stderr
+
+
+def test_force_added_local_data_is_rejected(tmp_path: Path) -> None:
+    root = build_repo(tmp_path)
+    data = root / "data" / "leaderboard.csv"
+    data.parent.mkdir()
+    data.write_text("Model,Score\nSynthetic fixture,1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(root), "add", "-f", str(data)], check=True)
+
+    result = run_gate(root)
+
+    assert result.returncode == 1
+    assert "local-only" in result.stderr
+
+
+def test_exported_csv_outside_cache_is_rejected(tmp_path: Path) -> None:
+    root = build_repo(tmp_path)
+    (root / "export.csv").write_text(
+        "Model,Score\nSynthetic fixture,1\n", encoding="utf-8"
+    )
+
+    result = run_gate(root)
+
+    assert result.returncode == 1
