@@ -12,6 +12,7 @@ Usage:
 import os
 import sys
 import logging
+from pathlib import Path
 
 if __package__:
     from .components.config import load_config
@@ -19,6 +20,7 @@ if __package__:
     from .components.logger import setup_logger
     from .components.parser import parse_leaderboard
     from .components.scraper import fetch_html, fetch_html_with_playwright
+    from .components.snapshot import normalize_model_url, record_local_snapshot, validate_model_table
 else:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from components.config import load_config
@@ -26,9 +28,10 @@ else:
     from components.logger import setup_logger
     from components.parser import parse_leaderboard
     from components.scraper import fetch_html, fetch_html_with_playwright
+    from components.snapshot import normalize_model_url, record_local_snapshot, validate_model_table
 
 
-def main() -> None:
+def main() -> int:
     """
     Main function that orchestrates the scraping process.
 
@@ -49,12 +52,13 @@ def main() -> None:
     url = config.get("target_url")
     if not url:
         logger.error("Target URL not found in configuration")
-        return
+        return 1
+    url = normalize_model_url(url)
 
     html_content = fetch_html(url)
     if not html_content:
         logger.error("Failed to fetch HTML content from the target URL")
-        return
+        return 1
 
     # Parse the leaderboard data from HTML
     leaderboard_data = parse_leaderboard(html_content)
@@ -69,13 +73,13 @@ def main() -> None:
 
     if not leaderboard_data:
         logger.error("Failed to parse leaderboard data from HTML")
-        return
+        return 1
 
     # Write the parsed data to CSV
     output_path = config.get("output_csv_path")
     if not output_path:
         logger.error("Output CSV path not found in configuration")
-        return
+        return 1
 
     add_timestamp = config.get("output_add_timestamp", True)
     localize_numbers = config.get("output_localize_numbers", True)
@@ -87,6 +91,10 @@ def main() -> None:
     )
 
     try:
+        if config.get("output_manifest", False):
+            validate_model_table(leaderboard_data)
+            if add_timestamp or localize_numbers:
+                raise ValueError("manifest output requires stable filename and unlocalized numbers")
         write_to_csv(
             leaderboard_data,
             output_path,
@@ -94,10 +102,14 @@ def main() -> None:
             localize_numbers=localize_numbers,
             locale_name=output_locale,
         )
+        if config.get("output_manifest", False):
+            record_local_snapshot(Path(output_path), url, html_content, leaderboard_data)
         logger.info("Leaderboard scraping process completed successfully")
-    except Exception as e:
+        return 0
+    except (OSError, ValueError) as e:
         logger.error(f"Failed to write data to CSV: {e}")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

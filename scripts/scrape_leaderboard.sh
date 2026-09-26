@@ -56,4 +56,7 @@ rows="$(( $(wc -l < "$CSV") - 1 ))"
 echo "scraped $rows rows -> $CSV"
 if [ -n "$OUT_DIR" ]; then
   mkdir -p "$OUT_DIR" && cp "$CSV" "$OUT_DIR/" && echo "copied -> $OUT_DIR/leaderboard.csv"
+  if [ -f "$CSV.manifest.json" ]; then
+    cp "$CSV.manifest.json" "$OUT_DIR/leaderboard.csv.manifest.json"
+  fi
 fi

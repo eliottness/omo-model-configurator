@@ -4,8 +4,8 @@ Upstream: <https://github.com/deyil/artificial-analysis-leaderboards-scraper>
 Pinned commit: `99167bae89b203e427c48f04edcf7366eae04ef5`
 License: GPL-3.0 (upstream `LICENSE` preserved unmodified)
 
-Three changes, all required to make the scraper produce usable output against
-the current Artificial Analysis site.
+Local changes needed for usable model-table output. All collected data and
+provenance stay local; this repository distributes only code and synthetic tests.
 
 ## 1. `config.yaml` — `target_url` returned 404
 
@@ -15,7 +15,7 @@ two Playwright attempts.
 
 ```diff
 -target_url: "https://artificialanalysis.ai/leaderboards/providers/prompt-options/single/medium_coding?deprecation=all"
-+target_url: "https://artificialanalysis.ai/leaderboards/models"
++target_url: "https://artificialanalysis.ai/leaderboards/models?status=all"
 ```
 
 ## 2. `src/components/parser.py` — the first column came back entirely empty
@@ -58,3 +58,29 @@ disabled so the output path is stable for scripting.
 -output_localize_numbers: true
 +output_localize_numbers: false
 ```
+
+## 4. Model scope and expanded columns
+
+The models table defaults to current models, hiding older models with valid
+measurements. Normalize its URL to `status=all`, open its Status dialog, uncheck
+Current, verify Status: All, and expand the metric columns. The old
+`deprecation=all` query did not control this table. Use locator/state waits rather
+than fixed delays. Other leaderboard routes retain their existing behavior.
+
+## 5. Failure propagation and atomic local output
+
+The entry point returns nonzero on fetch, parse, validation, or write failure,
+so the shell wrapper cannot accept an old CSV as a fresh success. Validate model
+names, row widths, required headers, and duplicate columns before replacing the
+latest CSV. Write through a flushed temporary file followed by atomic replace.
+
+## 6. Local-only reproducibility
+
+`snapshot.py` records scope, source URL, collection time, row count, headers,
+CSV and HTML hashes, and an explicitly unresolved benchmark revision when it is
+not exposed. Store a content-addressed local CSV and its original manifest, plus
+a latest manifest. Consumers verify the CSV hash and reject mismatched pairs.
+The shell wrapper copies the matching manifest with `--out`.
+
+Regression fixtures are synthetic. No AA HTML, metrics, CSVs, screenshots, or
+generated reports are distributed with these patches.

@@ -17,6 +17,7 @@ import csv
 import logging
 import os
 import re
+from tempfile import NamedTemporaryFile
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
 from typing import Any, List
@@ -203,9 +204,23 @@ def write_to_csv(
 
         logger.debug(f"write_to_csv will write to file_path={file_path!r}")
 
-        with open(file_path, "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerows(prepared_data)
+        temporary_path = None
+        try:
+            with NamedTemporaryFile(
+                mode="w", newline="", encoding="utf-8",
+                dir=os.path.dirname(file_path) or ".",
+                prefix=".leaderboard-", delete=False,
+            ) as csvfile:
+                temporary_path = csvfile.name
+                writer = csv.writer(csvfile)
+                writer.writerows(prepared_data)
+                csvfile.flush()
+                os.fsync(csvfile.fileno())
+            os.replace(temporary_path, file_path)
+            temporary_path = None
+        finally:
+            if temporary_path is not None:
+                os.unlink(temporary_path)
         logger.info(f"Successfully created CSV file at {file_path}")
     except IOError as e:
         logger.error(f"Error writing to CSV file {file_path}: {e}")

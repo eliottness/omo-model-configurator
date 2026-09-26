@@ -13,8 +13,10 @@ Key Features:
 
 import logging
 import random
+import re
 import time
 from typing import Optional
+from urllib.parse import urlsplit
 
 from playwright.sync_api import sync_playwright
 from rich.console import Console
@@ -95,9 +97,28 @@ def fetch_html_with_playwright(
                 status.update("Waiting for page to load...")
                 # Wait for the page to load completely
                 page.wait_for_load_state("networkidle")
-                _wait_for_leaderboard_content(page, logger)
+                parsed_url = urlsplit(url)
+                is_model_leaderboard = (
+                    parsed_url.hostname in {"artificialanalysis.ai", "www.artificialanalysis.ai"}
+                    and parsed_url.path.rstrip("/") == "/leaderboards/models"
+                )
+                if is_model_leaderboard:
+                    page.wait_for_selector("table tbody tr", timeout=15000)
+                    # The UI defaults to Current. Explicitly select and verify All.
+                    page.get_by_role("button", name=re.compile(r"^Status:")).click()
+                    page.get_by_role("checkbox", name="Current", exact=True).uncheck()
+                    page.keyboard.press("Escape")
+                    page.get_by_role("button", name=re.compile(r"^Status:\s*All$")).wait_for()
+                    if click_header_buttons:
+                        expand = page.get_by_role("button", name="Expand columns", exact=True)
+                        if expand.count():
+                            expand.click()
+                        page.get_by_text("Input Price", exact=True).first.wait_for()
+                        page.get_by_text("Output Price", exact=True).first.wait_for()
+                else:
+                    _wait_for_leaderboard_content(page, logger)
 
-                if click_header_buttons:
+                if click_header_buttons and not is_model_leaderboard:
                     status.update("Clicking headers...")
                     try:
                         header_buttons = page.locator("thead tr:first-of-type button")
@@ -112,8 +133,6 @@ def fetch_html_with_playwright(
                                 if btn.is_visible() and btn.is_enabled():
                                     btn.click()
                                     logger.debug(f"Clicked header button #{i}")
-                                    # Small wait to allow DOM updates to settle
-                                    page.wait_for_timeout(200)
                                 else:
                                     logger.debug(
                                         f"Skipping header button #{i} (not visible or not enabled)"
