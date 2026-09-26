@@ -24,6 +24,11 @@ while IFS= read -r -d '' file; do
 done < <(git ls-files -z --cached --others --exclude-standard)
 hits=""
 if [ "${#files[@]}" -gt 0 ]; then
+  local_reports="$(grep -IlE '^<!-- LOCAL_ONLY_AA_DATA -->$|^[[:space:]]*"local_only":[[:space:]]*true[,[:space:]]*$' -- "${files[@]}" || true)"
+  if [ -n "$local_reports" ]; then
+    echo "SCRUB GATE FAILED - local-only report data: $local_reports" >&2
+    exit 1
+  fi
   hits="$(grep -In --fixed-strings --file="$LIST" -- "${files[@]}" || true)"
 fi
 if [ -n "$hits" ]; then

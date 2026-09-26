@@ -1,5 +1,29 @@
 # The config surface that actually affects model behaviour
 
+## Native configuration and edition boundaries
+
+`runtime_config.py` resolves explicit shared overrides, then `[senpi]`, then
+canonical `[native]`, followed by the selected profile's corresponding layers.
+OpenCode resolves shared overrides and `[opencode]` only. Dictionaries merge;
+arrays replace in their existing order. `--profile` selects a profile explicitly.
+The audit separately inventories `model_profile` and named `model_profiles`.
+It does not invent a built-in profile selection or observe a host CLI override.
+
+The native model probe imports the installed engine's registry and preset
+resolver with network refresh and credential loading disabled. Custom model
+definitions can be supplied with `--models-path`. Admission and capability
+metadata are not proof that credentials or live entitlement work.
+
+`config_plan.py` maps approved replacements back to their winning raw source
+paths; it never serializes the merged effective view over the original file.
+Apply edits only those JSONC value tokens and preserves unrelated formatting,
+comments, inactive blocks, and fallback order.
+
+## Historical OpenCode reference
+
+The remainder describes the pinned OpenCode source below, not native OMO's
+current implementation. Confirm applicability before using its hooks or CLI.
+
 Notes from OMO's own `docs/reference/features.md` and `docs/reference/cli.md`
 (pinned `4480fd41ab26ceea0e4bfd1584d495b748b95dfa`). This page covers only what
 matters when you change a model — it is not a full config reference.

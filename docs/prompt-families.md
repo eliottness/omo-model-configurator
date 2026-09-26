@@ -1,5 +1,22 @@
 # Prompt families: how OMO decides which prompt your model gets
 
+## Native runtime inspection
+
+Use `validate_prompt_match.py MODEL --harness native --role ROLE --json`.
+The installed native engine supplies the preset name and capabilities, along
+with its version. Registry admission, model preset, role suitability, and live
+entitlement are separate questions. Search/read utilities may use the generic
+default preset; Sisyphus's OpenCode family gate is not a universal validator.
+Unsupported engine layouts fail inspection rather than silently using these
+historical regexes.
+
+## Historical OpenCode snapshot
+
+The following tables and the script's OpenCode mode are pinned observations.
+They are not proof of routing in a newer installed OpenCode version, and are
+never authority for native routing. Check the actual role's source, not every
+orchestrator surface, when proposing an OpenCode override.
+
 Reference commit: `4480fd41ab26ceea0e4bfd1584d495b748b95dfa` (branch `dev`).
 Re-verify against source before trusting this — these are notes, not the source of truth.
 

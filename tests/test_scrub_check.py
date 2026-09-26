@@ -105,3 +105,11 @@ def test_exported_csv_outside_cache_is_rejected(tmp_path: Path) -> None:
     result = run_gate(root)
 
     assert result.returncode == 1
+
+
+def test_local_report_marker_is_rejected_outside_cache(tmp_path: Path) -> None:
+    root = build_repo(tmp_path)
+    (root / "report.md").write_text(
+        "<!-- LOCAL_ONLY_AA_DATA -->\nSynthetic report.\n", encoding="utf-8"
+    )
+    assert run_gate(root).returncode == 1

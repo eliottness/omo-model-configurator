@@ -1,5 +1,36 @@
 # Reading Artificial Analysis numbers correctly
 
+## Coverage, identity, and local provenance
+
+The models UI defaults to current models. Collect `?status=all`, verify Status:
+All, and expand columns before concluding that an older model has no data.
+`?deprecation=all` is not the models table's status control.
+
+The join preserves configured chain order, not global score order. It separates
+model identity from reasoning effort and evaluation qualifiers. `auto` cannot
+be silently mapped to `max`; all available candidate rows remain in JSON when
+effort is unresolved. A single unlabeled row can supply measurements, but does
+not establish effort equivalence. Non-reasoning subvariants and `with fallback`
+remain explicit. Do not compare different evaluation policies as equivalent.
+
+Fast-to-base matches are proxies for every metric, including cost and throughput.
+Exact Fast rows take precedence; Pro remains a separate identity. `*` marks
+estimated cells and survives as metadata. An unmatched identity means the row
+is absent from this input, not that AA never benchmarked it. A missing cell in
+an otherwise matched row is distinct from an unresolved effort.
+
+Store CSVs and hash-bound manifests locally only. Each collection records its
+source URL, scope, collection time, headers, row count, and content hashes; an
+immutable local copy retains its original manifest. Check the timestamp before
+claiming freshness. Unknown benchmark revisions remain explicit; this tool does
+not establish comparability across revisions. Never commit, upload, or attach
+real AA exports or reports. Tests use invented measurements.
+
+## Historical benchmark interpretation
+
+The version-specific notes below are historical observations. Recheck AA's
+current methodology before relying on these weights or formulas for a new audit.
+
 The leaderboard scraper pulls Artificial Analysis (AA) data. Two of its columns
 are routinely misread, and one whole class of column does not transfer to your
 environment at all. This page is about not fooling yourself.

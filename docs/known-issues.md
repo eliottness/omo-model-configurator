@@ -46,7 +46,7 @@ whose *primary* is a Gemini model may be non-functional while tools are enabled,
 and any Gemini entry in a fallback chain is a dead rung. Verify before relying
 on one.
 
-## 2. `doctor` reports working providers as unavailable (FALSE POSITIVE)
+## 2. Cache warnings need evidence; doctor must match the edition
 
 `oh-my-openagent doctor` may report:
 
@@ -55,9 +55,15 @@ Model override uses unavailable provider
    Provider(s) not found in OpenCode model cache: <provider>
 ```
 
-for a provider that works perfectly. The check consults OpenCode's **model
-cache**; a provider that is reachable but absent from that cache is reported as
-missing.
+for a working provider. The check consults OpenCode's **model cache**, not live
+entitlement. The wrapper marks this as suspected until matching registry evidence
+from the same harness confirms admission. Native evidence must not suppress an
+OpenCode finding. Confirmation still leaves live entitlement unprobed.
+
+Use `--harness native` for `omo doctor`; use `--harness opencode --version VERSION`
+for the pinned OpenCode diagnostic. Native `[native]` schema errors from an older
+OpenCode doctor are evidence of a mismatched diagnostic, not an instruction to
+rewrite the native configuration. Do not silence unrelated errors.
 
 **How to tell a false positive from a real one:** call the model directly.
 
@@ -65,7 +71,8 @@ missing.
 opencode run -m <provider>/<model> --format json "reply with exactly: OK"
 ```
 
-If that returns text, the provider works and the warning is noise. Refreshing
+Validate the intended response and any required tool call, not only process exit.
+If that succeeds for the intended model, it establishes live access. Refreshing
 capabilities (`oh-my-openagent refresh-model-capabilities`) may clear it.
 
 ## 3. `fallback_models` is deprecated in favour of `models`
@@ -103,3 +110,7 @@ here and documented in `vendor/aa-scraper/PATCHES.md`:
 
 Additionally its default locale formatting rewrote decimals (`85.5` -> `85,5`),
 which breaks numeric sorting downstream; the vendored config disables it.
+
+Further fixes select all model statuses and expanded columns, return nonzero
+on fetch/parse/write failure, validate before replacing a cache, write atomically,
+and retain local hash-bound provenance. An old CSV is not a successful refresh.
