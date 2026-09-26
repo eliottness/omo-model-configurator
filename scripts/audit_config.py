@@ -142,6 +142,9 @@ def audit(options: argparse.Namespace) -> int:
             blockers.append(f"model absent from collected AA rows: {match.config_model_id}")
     view = resolve_config_view(proposed, harness, options.profile)
     findings = lint_config({"[opencode]": view})
+    if harness == "native":
+        for finding in findings:
+            finding["location"] = finding["location"].replace("[opencode]", "[native]", 1)
     blockers.extend(finding["message"] for finding in findings if finding["severity"] == "error")
     plan = {
         "schema_version": 1, "local_only": True, "config_path": str(config_path),

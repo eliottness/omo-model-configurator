@@ -217,3 +217,19 @@ def test_audit_blocks_registry_evidence_from_another_harness(tmp_path: Path) -> 
     assert result.returncode == 1
     plan = json.loads((tmp_path / "audit-output" / "plan.json").read_text())
     assert plan["status"] == "blocked"
+
+
+def test_native_audit_findings_do_not_target_the_inactive_harness(tmp_path: Path) -> None:
+    config, leaderboard, probe = prepare(tmp_path)
+    config.write_text(config.read_text().replace('"models"', '"fallback_models"'))
+    original = config.read_bytes()
+    result = subprocess.run([
+        sys.executable, str(SCRIPT), "audit", "--config", str(config),
+        "--leaderboard", str(leaderboard), "--probe-file", str(probe),
+        "--harness", "native", "--output", str(tmp_path / "audit-output"),
+    ], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    report = json.loads((tmp_path / "audit-output" / "report.json").read_text())
+    assert report["findings"]
+    assert all(item["location"].startswith("[native]") for item in report["findings"])
+    assert config.read_bytes() == original
