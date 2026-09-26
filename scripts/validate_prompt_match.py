@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
+from pathlib import Path
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -248,6 +250,11 @@ class Arguments(argparse.Namespace):
     agent: Surface | None
     json_output: bool
     explain: bool
+    harness: str
+    role: str | None
+    probe_file: Path | None
+    engine_root: Path | None
+    models_path: Path | None
 
 
 def _parse_args(argv: Sequence[str] | None = None) -> Arguments:
@@ -258,6 +265,11 @@ def _parse_args(argv: Sequence[str] | None = None) -> Arguments:
     parser.add_argument("--agent", choices=tuple(Surface), type=Surface)
     parser.add_argument("--json", action="store_true", dest="json_output")
     parser.add_argument("--explain", action="store_true")
+    parser.add_argument("--harness", choices=("opencode", "native", "senpi"), default="opencode")
+    parser.add_argument("--role", help="Actual native role; not an OpenCode surface")
+    parser.add_argument("--probe-file", type=Path, help="Previously captured native probe JSON")
+    parser.add_argument("--engine-root", type=Path)
+    parser.add_argument("--models-path", type=Path)
     arguments = Arguments()
     parser.parse_args(argv, namespace=arguments)
     return arguments
@@ -273,6 +285,8 @@ def _explanation(model: str) -> JsonExplanation:
 
 
 def _run(arguments: Arguments) -> int:
+    if arguments.harness in {"native", "senpi"}:
+        return _run_native(arguments)
     surfaces = tuple(Surface) if arguments.agent is None else (arguments.agent,)
     results = tuple(_resolve_surface(arguments.model_id, surface) for surface in surfaces)
     warnings = [_warning(result) for result in results if result.degraded]
@@ -310,6 +324,57 @@ def _run(arguments: Arguments) -> int:
                 print(f"- {note}")
 
     return 1 if any(result.resolved == "fallback" for result in results) else 0
+
+
+def _run_native(arguments: Arguments) -> int:
+    from runtime_config import probe_native_models
+
+    try:
+        payload = (
+            json.loads(arguments.probe_file.read_text(encoding="utf-8"))
+            if arguments.probe_file
+            else probe_native_models(
+                [arguments.model_id], arguments.engine_root, arguments.models_path
+            )
+        )
+        models = payload.get("models", [])
+        evidence = next(
+            (item for item in models if item.get("model") == arguments.model_id),
+            None,
+        )
+        if evidence is None:
+            raise ValueError("probe contains no evidence for the requested model")
+        admitted = evidence.get("registry_admitted") is True
+        preset = evidence.get("preset")
+        matched = admitted and isinstance(preset, str) and bool(preset)
+        expected_default = admitted and arguments.role in {"explore", "librarian", "search", "quick"}
+        result = {
+            "model": arguments.model_id,
+            "runtime": payload.get("runtime"),
+            "role": arguments.role,
+            "authority": "installed-runtime",
+            "results": [{
+                "surface": "native",
+                "resolved": preset if preset else ("default" if expected_default else "no-model-preset"),
+                "matched": matched,
+                "degraded": not (matched or expected_default),
+            }],
+            "evidence": evidence,
+            "warnings": [] if matched else [
+                "Model is absent from the registry." if not admitted else
+                "No model-specific preset; role prompt compatibility is not verified."
+            ],
+        }
+        if arguments.json_output:
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"native: {result['results'][0]['resolved']}")
+            for warning in result["warnings"]:
+                print(f"WARNING: {warning}")
+        return 0 if matched or expected_default else (1 if not admitted else 2)
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"ERROR: unsupported native inspection: {error}", file=sys.stderr)
+        return 2
 
 
 def main(argv: Sequence[str] | None = None) -> int:

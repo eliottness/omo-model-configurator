@@ -270,6 +270,8 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--known-models", type=Path, dest="known_models_path")
     parser.add_argument("--json", action="store_true", dest="json_output")
     parser.add_argument("--min-severity", choices=("error", "warning", "info"), default="error")
+    parser.add_argument("--harness", choices=("opencode", "native", "senpi"), default="opencode")
+    parser.add_argument("--profile")
     return parser.parse_args(argv)
 
 
@@ -297,8 +299,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ConfigFileError as error:
         _print_report([], options.json_output, str(error))
         return 2
-    findings = lint_config(config, known_models)
-    _print_report(findings, options.json_output)
+    from runtime_config import resolve_config_view
+
+    view = resolve_config_view(config, options.harness, options.profile)
+    findings = lint_config({"[opencode]": view}, known_models)
+    if options.harness != "opencode":
+        for finding in findings:
+            finding["location"] = finding["location"].replace("[opencode]", "[native]", 1)
+    inactive = {}
+    if options.harness != "opencode" and "[opencode]" in config:
+        inactive["opencode"] = lint_config(
+            {"[opencode]": config["[opencode]"]}, known_models
+        )
+    if options.json_output and options.harness != "opencode":
+        print(json.dumps({
+            "findings": findings, "summary": summarize(findings),
+            "inactive_harnesses": inactive,
+        }, indent=2))
+    else:
+        _print_report(findings, options.json_output)
     threshold = SEVERITY_RANK[options.min_severity]
     return int(any(SEVERITY_RANK[item["severity"]] >= threshold for item in findings))
 

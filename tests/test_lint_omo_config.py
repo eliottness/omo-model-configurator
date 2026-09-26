@@ -305,3 +305,54 @@ def test_variant_distinguishes_primary_from_fallback_entry(tmp_path: Path) -> No
         if finding["rule_id"] == "primary-duplicated-in-fallback"
     ]
     assert duplicates == []
+
+
+def test_native_harness_lints_effective_view_and_reports_inactive_slots(
+    tmp_path: Path,
+) -> None:
+    # Given shared native settings plus a malformed inactive OpenCode slot.
+    config = (
+        '{"agents":{"oracle":{"model":"exampleprovider/shared"}},'
+        '"[native]":{"agents":{"oracle":{"model":"exampleprovider/native"}}},'
+        '"[opencode]":{"agents":{"oracle":{"model":"malformed"}}}}'
+    )
+
+    # When the native view is linted.
+    result = run_linter(tmp_path, config, ("--harness", "native"))
+
+    # Then inactive OpenCode findings are separated and do not fail the native view.
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["findings"] == []
+    assert payload["inactive_harnesses"] == {
+        "opencode": [
+            {
+                "rule_id": "malformed-model-id",
+                "severity": "error",
+                "location": "[opencode].agents.oracle.model",
+                "message": "The model identifier is empty or lacks a provider.",
+                "suggestion": "Use provider/model form.",
+            }
+        ]
+    }
+
+
+def test_native_profile_chain_preserves_order_during_lint(tmp_path: Path) -> None:
+    # Given a selected profile replacing the native category chain.
+    config = (
+        '{"[native]":{"categories":{"search":{"models":['
+        '"exampleprovider/base-first","exampleprovider/base-second"]}}},'
+        '"profiles":{"focused":{"[native]":{"categories":{"search":{"models":['
+        '"exampleprovider/profile-first","exampleprovider/profile-second"]}}}}}}'
+    )
+
+    # When the native profile is linted.
+    result = run_linter(
+        tmp_path,
+        config,
+        ("--harness", "native", "--profile", "focused"),
+    )
+
+    # Then the ordered replacement chain is valid without merge artifacts.
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["findings"] == []

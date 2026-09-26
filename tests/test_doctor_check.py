@@ -52,9 +52,10 @@ def test_model_cache_warning_classified_as_known_false_positive(tmp_path: Path) 
     r = _run(f, "--json")
     assert r.returncode == 0, r.stdout + r.stderr
     out = json.loads(r.stdout)
-    assert out["known_false_positive_count"] == 1
+    assert out["suspected_count"] == 1
     assert out["actionable_count"] == 0
-    fp = out["known_false_positives"][0]
+    fp = out["suspected"][0]
+    assert fp["status"] == "suspected"
     assert "verify" in fp["how_to_verify"].lower()
     assert "someprovider" in fp["how_to_verify"]
 
@@ -71,7 +72,7 @@ def test_deprecated_reasoning_key_is_actionable(tmp_path: Path) -> None:
     r = _run(f, "--json")
     out = json.loads(r.stdout)
     assert out["actionable_count"] == 1
-    assert out["known_false_positive_count"] == 0
+    assert out["suspected_count"] == 0
 
 
 def test_error_severity_exits_one(tmp_path: Path) -> None:
@@ -94,15 +95,15 @@ def test_strict_promotes_actionable_warnings_to_failure(tmp_path: Path) -> None:
     assert _run(f, "--strict").returncode == 1
 
 
-def test_strict_does_not_fail_on_known_false_positive_only(tmp_path: Path) -> None:
-    """--strict must still tolerate a report whose only finding is a known FP."""
+def test_strict_requires_evidence_for_suspected_cache_warning(tmp_path: Path) -> None:
+    """A cache-warning pattern alone does not prove that the provider works."""
     f = _write(tmp_path, [{
         "name": "Configuration", "status": "warn", "message": "w", "details": [],
         "issues": [{"title": "Model override uses unavailable provider",
                     "description": "Provider(s) not found in OpenCode model cache: p",
                     "severity": "warning", "affects": ["model resolution"]}],
     }])
-    assert _run(f, "--strict").returncode == 0
+    assert _run(f, "--strict").returncode == 1
 
 
 def test_malformed_json_exits_two(tmp_path: Path) -> None:
@@ -120,3 +121,79 @@ def test_reports_pinned_version_in_command(tmp_path: Path) -> None:
     r = _run(f, "--json", "--version", "4.19.4")
     out = json.loads(r.stdout)
     assert out["pinned_version"] == "4.19.4"
+
+
+def test_probe_confirmation_upgrades_cache_warning_from_suspected(
+    tmp_path: Path,
+) -> None:
+    # Given a cache warning and evidence from the same harness registry.
+    fixture = _write(tmp_path, [{
+        "name": "Configuration",
+        "status": "warn",
+        "message": "w",
+        "details": [],
+        "issues": [{
+            "title": "Model override uses unavailable provider",
+            "description": "Provider(s) not found in OpenCode model cache: someprovider",
+            "severity": "warning",
+            "affects": ["model resolution"],
+        }],
+    }])
+    probe = tmp_path / "probe.json"
+    probe.write_text(
+        json.dumps(
+            {
+                "runtime": {"surface": "opencode"},
+                "models": [
+                    {
+                        "model": "someprovider/model",
+                        "registry_admitted": True,
+                        "credential_ready": False,
+                        "live_entitlement": "not-probed",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    # When the wrapper receives that probe evidence.
+    result = _run(fixture, "--json", "--probe-file", str(probe))
+
+    # Then the finding is confirmed as registry-cache noise, not live entitlement.
+    assert result.returncode == 0, result.stdout + result.stderr
+    output = json.loads(result.stdout)
+    assert output["suspected_count"] == 0
+    assert output["confirmed_noise_count"] == 1
+    assert output["confirmed_noise"][0]["status"] == "registry-confirmed"
+    assert output["confirmed_noise"][0]["live_entitlement"] == "not-probed"
+
+
+def test_other_harness_registry_does_not_confirm_cache_warning() -> None:
+    from scripts.doctor_check import build_report
+
+    payload = {"target": "opencode", "results": [{
+        "name": "Configuration", "issues": [{
+            "title": "Model override uses unavailable provider",
+            "description": "Provider(s) not found in OpenCode model cache: example",
+            "severity": "warning", "affects": [],
+        }],
+    }]}
+    probe = {
+        "runtime": {"surface": "native"},
+        "models": [{"model": "example/model", "registry_admitted": True}],
+    }
+    report = build_report(payload, None, probe).as_dict()
+    assert report["suspected_count"] == 1
+    assert report["confirmed_noise_count"] == 0
+
+
+def test_native_doctor_command_uses_installed_omo_not_opencode_bunx() -> None:
+    from scripts.doctor_check import doctor_command
+
+    # Given the native harness and a native version pin.
+    # When the diagnostic command is selected.
+    command = doctor_command("native", "5.0.0-0.beta.86", "opencode")
+
+    # Then native omo doctor is dispatched without the incompatible OpenCode parser.
+    assert command == ["omo", "doctor"]
