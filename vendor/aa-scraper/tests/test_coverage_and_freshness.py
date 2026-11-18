@@ -46,7 +46,7 @@ def test_successful_scrape_records_local_provenance(tmp_path: Path) -> None:
     html = """<table><thead><tr>
     <th>Model</th><th>Artificial Analysis Intelligence Index</th>
     <th>Cost per Task USD</th><th>Input Price USD/1M Tokens</th>
-    <th>Output Price USD/1M Tokens</th><th>Median Tokens/s</th>
+    <th>Output Price USD/1M Tokens</th><th>Average tok/s</th>
     </tr></thead><tbody><tr><td>Synthetic Model</td><td>7*</td>
     <td>$0.01</td><td>$0.02</td><td>$0.03</td><td>4</td>
     </tr></tbody></table>"""

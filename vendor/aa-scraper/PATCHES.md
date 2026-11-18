@@ -82,5 +82,12 @@ not exposed. Store a content-addressed local CSV and its original manifest, plus
 a latest manifest. Consumers verify the CSV hash and reject mismatched pairs.
 The shell wrapper copies the matching manifest with `--out`.
 
+## 7. Throughput column renamed upstream
+
+AA renamed the models-table throughput column from `Median Tokens/s` to
+`Average tok/s` (observed 2026-11-18). The required-column check rejected every
+fresh snapshot as missing `Median Tokens/s`. `REQUIRED_COLUMNS` now requires
+`Average tok/s`, and `scripts/match_config.py` reads the same column.
+
 Regression fixtures are synthetic. No AA HTML, metrics, CSVs, screenshots, or
 generated reports are distributed with these patches.

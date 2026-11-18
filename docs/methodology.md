@@ -93,7 +93,7 @@ that greps or fetches first.
 
 ## Throughput columns do not transfer
 
-`Median Tokens/s` and the latency percentiles are measured against the endpoint
+`Average tok/s` and the latency percentiles are measured against the endpoint
 **AA chose**. Your serving stack, region, quantization, batching and gateway are
 different, and the gap is routinely a multiple in either direction — not a few
 percent. **Do not make a latency or throughput decision from the leaderboard.**

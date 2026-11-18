@@ -16,7 +16,7 @@ CSV_FIELDS = (
     "Cost per Task USD",
     "Input Price USD/1M Tokens",
     "Output Price USD/1M Tokens",
-    "Median Tokens/s",
+    "Average tok/s",
 )
 
 
@@ -63,7 +63,7 @@ def leaderboard_row(model: str, intelligence: str = "80") -> dict[str, str]:
         "Cost per Task USD": "0.40",
         "Input Price USD/1M Tokens": "1.25",
         "Output Price USD/1M Tokens": "5.00",
-        "Median Tokens/s": "75",
+        "Average tok/s": "75",
     }
 
 
@@ -435,7 +435,7 @@ def test_double_dash_missing_marker_is_treated_as_absent(tmp_path: Path) -> None
       }
     }"""
     rows = [leaderboard_row("alpha (high)")]
-    rows[0]["Median Tokens/s"] = "--"
+    rows[0]["Average tok/s"] = "--"
 
     # When
     output = run_match(config, rows, tmp_path)
@@ -655,7 +655,7 @@ def test_missing_metric_cell_is_distinct_from_missing_model_row(tmp_path: Path) 
       }
     }"""
     rows = [leaderboard_row("Alpha (high)")]
-    rows[0]["Median Tokens/s"] = "--"
+    rows[0]["Average tok/s"] = "--"
 
     # When
     output = run_match(config, rows, tmp_path)

@@ -20,7 +20,7 @@ First run:
     scripts/scrape_leaderboard.sh
 
 Output columns include: Model, Artificial Analysis Intelligence Index,
-Cost per Task USD, Input/Output Price USD/1M Tokens, Median Tokens/s.
+Cost per Task USD, Input/Output Price USD/1M Tokens, Average tok/s.
 Feed the CSV to scripts/match_config.py.
 USAGE
 }

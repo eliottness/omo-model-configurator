@@ -26,7 +26,7 @@ INTELLIGENCE_COLUMN: Final = "Artificial Analysis Intelligence Index"
 COST_COLUMN: Final = "Cost per Task USD"
 INPUT_PRICE_COLUMN: Final = "Input Price USD/1M Tokens"
 OUTPUT_PRICE_COLUMN: Final = "Output Price USD/1M Tokens"
-TOKENS_COLUMN: Final = "Median Tokens/s"
+TOKENS_COLUMN: Final = "Average tok/s"
 REQUIRED_COLUMNS: Final = (
     MODEL_COLUMN,
     INTELLIGENCE_COLUMN,

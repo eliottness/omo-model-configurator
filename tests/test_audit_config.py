@@ -50,7 +50,7 @@ def prepare(tmp_path: Path) -> tuple[Path, Path, Path]:
         writer = csv.writer(stream)
         writer.writerow([
             "Model", "Artificial Analysis Intelligence Index", "Cost per Task USD",
-            "Input Price USD/1M Tokens", "Output Price USD/1M Tokens", "Median Tokens/s",
+            "Input Price USD/1M Tokens", "Output Price USD/1M Tokens", "Average tok/s",
         ])
         for label in ("Alpha (low)", "Beta (low)", "Fallback"):
             writer.writerow([label, "7", "0.01", "0.02", "0.03", "4"])

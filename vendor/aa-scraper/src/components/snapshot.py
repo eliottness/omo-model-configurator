@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit, urlunsplit
 
 REQUIRED_COLUMNS: Final = frozenset({
     "Model", "Artificial Analysis Intelligence Index", "Cost per Task USD",
-    "Input Price USD/1M Tokens", "Output Price USD/1M Tokens", "Median Tokens/s",
+    "Input Price USD/1M Tokens", "Output Price USD/1M Tokens", "Average tok/s",
 })
 
 
