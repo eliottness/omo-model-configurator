@@ -98,5 +98,11 @@ configured model joined. `extract_provider_name()` now returns the cell's
 whitespace-normalised text when it has any, and uses the logo only for
 logo-only cells, so provider leaderboards are unaffected.
 
+The effort/qualifier label also moved out of parentheses into its own `<span>`
+(`Claude Opus 5.5` + `<span>Max, Default Fallback</span>`). The parser rebuilds
+`Claude Opus 5.5 (Max, Default Fallback)`, the form `split_model_label()` in
+`scripts/match_config.py` parses into name, effort and qualifiers. Cells without
+a label span keep their plain text.
+
 Regression fixtures are synthetic. No AA HTML, metrics, CSVs, screenshots, or
 generated reports are distributed with these patches.

@@ -32,7 +32,13 @@ def extract_provider_name(cell) -> str:
     """
     # The models leaderboard renders a provider logo before the model name in
     # the same cell; the visible text is the row identity, so it wins over alt.
+    # The effort/qualifier label sits in its own <span>; restore the
+    # "Name (label)" form that downstream label parsing expects.
     text = " ".join(cell.get_text(" ", strip=True).split())
+    span = cell.find("span")
+    label = " ".join(span.get_text(" ", strip=True).split()) if span else ""
+    if label and text.endswith(label) and text != label:
+        return f"{text[: -len(label)].strip()} ({label})"
     if text:
         return text
 

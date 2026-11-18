@@ -113,7 +113,16 @@ def test_extract_provider_name_prefers_text_over_logo():
     soup = BeautifulSoup(html, "html.parser")
     cell = soup.find("td")
 
-    assert extract_provider_name(cell) == "Claude Opus 5.5 Max, Default Fallback"
+    assert extract_provider_name(cell) == "Claude Opus 5.5 (Max, Default Fallback)"
+
+
+def test_extract_provider_name_without_label_span():
+    """A models-table cell with no effort label yields the bare model name."""
+    html = '<td><div><button><img alt="Kimi" src="/img/logos/kimi.svg">Kimi K3.1 Pro</button></div></td>'
+    soup = BeautifulSoup(html, "html.parser")
+    cell = soup.find("td")
+
+    assert extract_provider_name(cell) == "Kimi K3.1 Pro"
 
 
 def test_parse_leaderboard_with_sample_row():
