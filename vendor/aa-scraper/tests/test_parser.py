@@ -104,6 +104,18 @@ def test_extract_provider_name_prefers_anchor_text():
     assert extract_provider_name(cell) == "GLM-5.3 (max)"
 
 
+def test_extract_provider_name_prefers_text_over_logo():
+    """A models-table cell with a provider logo and a model name yields the name."""
+    html = (
+        '<td><div><button><img alt="Anthropic" src="/img/logos/anthropic.svg">'
+        "Claude Opus 5.5<!-- --> <span>Max, Default Fallback</span></button></div></td>"
+    )
+    soup = BeautifulSoup(html, "html.parser")
+    cell = soup.find("td")
+
+    assert extract_provider_name(cell) == "Claude Opus 5.5 Max, Default Fallback"
+
+
 def test_parse_leaderboard_with_sample_row():
     """Test parsing of a sample table row with provider logo."""
     # Using the sample HTML row provided in the task

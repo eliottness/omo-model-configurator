@@ -89,5 +89,14 @@ AA renamed the models-table throughput column from `Median Tokens/s` to
 fresh snapshot as missing `Median Tokens/s`. `REQUIRED_COLUMNS` now requires
 `Average tok/s`, and `scripts/match_config.py` reads the same column.
 
+## 8. `src/components/parser.py` — logo alt replaced every model name
+
+The models table now renders a provider logo (`<img alt="Anthropic">`) before
+the model name and effort in the first cell (observed 2026-11-18). Because the
+`<img>` path ran first, every `Model` value became the provider name and no
+configured model joined. `extract_provider_name()` now returns the cell's
+whitespace-normalised text when it has any, and uses the logo only for
+logo-only cells, so provider leaderboards are unaffected.
+
 Regression fixtures are synthetic. No AA HTML, metrics, CSVs, screenshots, or
 generated reports are distributed with these patches.

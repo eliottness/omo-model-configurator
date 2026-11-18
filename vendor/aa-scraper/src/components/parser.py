@@ -30,6 +30,12 @@ def extract_provider_name(cell) -> str:
     Returns:
         str: Provider name extracted from the cell
     """
+    # The models leaderboard renders a provider logo before the model name in
+    # the same cell; the visible text is the row identity, so it wins over alt.
+    text = " ".join(cell.get_text(" ", strip=True).split())
+    if text:
+        return text
+
     # Look for img element in the cell
     img = cell.find("img")
     if img:
@@ -50,13 +56,7 @@ def extract_provider_name(cell) -> str:
             name_without_ext = os.path.splitext(filename)[0]
             return name_without_ext
 
-    # No usable image metadata: fall back to the cell's own text.
-    # The models leaderboard renders the entity name as an anchor/text node in
-    # the first cell rather than a provider logo, so an img-only lookup returns
-    # "" for every row and yields an entirely empty first column.
-    anchor = cell.find("a")
-    text = anchor.get_text(" ", strip=True) if anchor else cell.get_text(" ", strip=True)
-    return " ".join(text.split())
+    return ""
 
 
 def parse_leaderboard(html: str) -> List[List[str]]:
